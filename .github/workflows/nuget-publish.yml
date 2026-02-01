@@ -80,7 +80,7 @@ jobs:
 
       - name: Publish to GitHub Packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_PAT  }}
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
             -s https://nuget.pkg.github.com/MohamedNader/index.json \
