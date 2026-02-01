@@ -22,9 +22,24 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup GitVersion (compute semantic version)
-        uses: gittools/actions/gitversion/execute@v0.9.14
+      - name: Install & expose GitVersion CLI
+        id: install_gitversion
+        run: |
+          # ensure dotnet global tools folder is available to this runner
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          export PATH="$HOME/.dotnet/tools:$PATH"
+
+          # install GitVersion CLI if missing (safe if already installed)
+          if ! command -v gitversion >/dev/null 2>&1; then
+            dotnet tool install --global GitVersion.Tool --version 5.13.0
+          fi
+
+      - name: Compute semantic version (GitVersion)
         id: gitversion
+        run: |
+          export PATH="$HOME/.dotnet/tools:$PATH"
+          echo "NuGetVersionV2=$(gitversion /showvariable NuGetVersionV2)" >> $GITHUB_OUTPUT
+          echo "FullSemVer=$(gitversion /showvariable FullSemVer)" >> $GITHUB_OUTPUT
 
       - name: Restore
         run: dotnet restore
