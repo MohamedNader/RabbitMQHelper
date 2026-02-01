@@ -34,6 +34,15 @@ jobs:
             dotnet tool install --global GitVersion.Tool --version 5.13.0
           fi
 
+      - name: Install GitVersion
+        run: |
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+          export PATH="$HOME/.dotnet/tools:$PATH"
+
+          if ! command -v dotnet-gitversion >/dev/null 2>&1; then
+            dotnet tool install --global GitVersion.Tool
+          fi
+
       - name: Compute semantic version (GitVersion)
         id: gitversion
         run: |
