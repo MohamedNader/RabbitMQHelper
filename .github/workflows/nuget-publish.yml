@@ -12,7 +12,7 @@ jobs:
   build-pack-publish:
     runs-on: ubuntu-latest
     env:
-      REPO_OWNER: ${{ github.repository_owner }}   # used for GitHub Packages feed URL
+      REPO_OWNER: ${{ github.repository_owner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,10 +61,17 @@ jobs:
           echo "Packing with PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} (Version=${{ steps.gitversion.outputs.FullSemVer }})"
           dotnet pack -c Release --no-build -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.FullSemVer }}
 
+      # Debug step to show event/ref (helps explain why publish is skipped)
+      - name: Debug show event & ref
+        run: |
+          echo "GITHUB_EVENT_NAME=${{ github.event_name }}"
+          echo "GITHUB_REF=${{ github.ref }}"
+          echo "GITHUB_SHA=${{ github.sha }}"
+
       - name: Publish NuGet package to GitHub Packages
-        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
+        if: ${{ github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
         env:
-          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}   # use your PAT secret (repo, write:packages)
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.GITHUB_PACKAGES_TOKEN }}
         run: |
           echo "Publishing packages to GitHub Packages for owner: $REPO_OWNER"
           ls -la ./artifacts || true
