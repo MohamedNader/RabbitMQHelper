@@ -11,6 +11,8 @@ on:
 jobs:
   build-pack-publish:
     runs-on: ubuntu-latest
+    env:
+      REPO_OWNER: ${{ github.repository_owner }}   # used for GitHub Packages feed URL
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,9 +32,8 @@ jobs:
       - name: Install or update GitVersion.Tool
         run: |
           export PATH="$HOME/.dotnet/tools:$PATH"
-          # install latest GitVersion CLI; if already installed update it
           if ! command -v gitversion >/dev/null 2>&1; then
-            dotnet tool install --global GitVersion.Tool || dotnet tool update --global GitVersion.Tool
+            dotnet tool install --global GitVersion.Tool || true
           else
             dotnet tool update --global GitVersion.Tool || true
           fi
@@ -41,19 +42,10 @@ jobs:
         id: gitversion
         run: |
           export PATH="$HOME/.dotnet/tools:$PATH"
-          set -e
-          # Try to get the canonical values. If gitversion fails, fall back to a CI placeholder.
           NuGetVersionV2=$(gitversion /showvariable NuGetVersionV2 2>/dev/null || true)
           FullSemVer=$(gitversion /showvariable FullSemVer 2>/dev/null || true)
-
-          if [ -z "$NuGetVersionV2" ]; then
-            echo "Warning: GitVersion did not return NuGetVersionV2. Falling back to 0.0.0-ci."
-            NuGetVersionV2="0.0.0-ci"
-          fi
-          if [ -z "$FullSemVer" ]; then
-            FullSemVer="$NuGetVersionV2"
-          fi
-
+          if [ -z "$NuGetVersionV2" ]; then NuGetVersionV2="0.0.0-ci"; fi
+          if [ -z "$FullSemVer" ]; then FullSemVer="$NuGetVersionV2"; fi
           echo "NuGetVersionV2=$NuGetVersionV2" >> $GITHUB_OUTPUT
           echo "FullSemVer=$FullSemVer" >> $GITHUB_OUTPUT
 
@@ -69,20 +61,20 @@ jobs:
           echo "Packing with PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} (Version=${{ steps.gitversion.outputs.FullSemVer }})"
           dotnet pack -c Release --no-build -o ./artifacts /p:PackageVersion=${{ steps.gitversion.outputs.NuGetVersionV2 }} /p:Version=${{ steps.gitversion.outputs.FullSemVer }}
 
-      # - name: Publish to NuGet.org
-      #   if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
-      #   env:
-      #     NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-      #   run: |
-      #     echo "Packages in artifacts:"
-      #     ls -la ./artifacts || true
-      #     dotnet nuget push ./artifacts/*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate
-
       - name: Publish NuGet package to GitHub Packages
+        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main')
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_PAT }}  # <- classic PAT with write:packages
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_PAT }}   # Personal Access Token with write:packages
         run: |
-          dotnet nuget push ./artifacts/*.nupkg \
-            --source "https://nuget.pkg.github.com/${{ env.REPO_OWNER }}/index.json" \
-            --api-key $GITHUB_TOKEN \
-            --skip-duplicate
+          echo "Publishing packages to GitHub Packages for owner: $REPO_OWNER"
+          ls -la ./artifacts || true
+          for pkg in ./artifacts/*.nupkg; do
+            if [ -f "$pkg" ]; then
+              dotnet nuget push "$pkg" \
+                --source "https://nuget.pkg.github.com/${REPO_OWNER}/index.json" \
+                --api-key "$GITHUB_TOKEN" \
+                --skip-duplicate
+            else
+              echo "No packages found to push."
+            fi
+          done
