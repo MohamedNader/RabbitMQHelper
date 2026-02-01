@@ -78,11 +78,11 @@ jobs:
       #     ls -la ./artifacts || true
       #     dotnet nuget push ./artifacts/*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate
 
-      - name: Publish to GitHub Packages
+      - name: Publish NuGet package to GitHub Packages
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_PAT  }}
+          GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_PAT }}  # <- classic PAT with write:packages
         run: |
           dotnet nuget push ./artifacts/*.nupkg \
-            -s https://nuget.pkg.github.com/MohamedNader/index.json \
-            -k $GITHUB_TOKEN \
+            --source "https://nuget.pkg.github.com/${{ env.REPO_OWNER }}/index.json" \
+            --api-key $GITHUB_TOKEN \
             --skip-duplicate
