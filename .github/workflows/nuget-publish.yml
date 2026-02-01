@@ -25,22 +25,15 @@ jobs:
       - name: Install & expose GitVersion CLI
         id: install_gitversion
         run: |
-          # ensure dotnet global tools folder is available to this runner
+          # ensure dotnet global tools folder is available to this runner and on PATH
           echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
           export PATH="$HOME/.dotnet/tools:$PATH"
 
-          # install GitVersion CLI if missing (safe if already installed)
+          # install or update GitVersion CLI (no hard pinned version)
           if ! command -v gitversion >/dev/null 2>&1; then
-            dotnet tool install --global GitVersion.Tool --version 5.13.0
-          fi
-
-      - name: Install GitVersion
-        run: |
-          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
-          export PATH="$HOME/.dotnet/tools:$PATH"
-
-          if ! command -v dotnet-gitversion >/dev/null 2>&1; then
-            dotnet tool install --global GitVersion.Tool
+            dotnet tool install --global GitVersion.Tool || dotnet tool update --global GitVersion.Tool
+          else
+            dotnet tool update --global GitVersion.Tool || true
           fi
 
       - name: Compute semantic version (GitVersion)
@@ -68,4 +61,4 @@ jobs:
         run: |
           echo "Packages in artifacts:"
           ls -la ./artifacts || true
-          dotnet nuget push ./artifacts/*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json --skip-duplicate
+          dot
